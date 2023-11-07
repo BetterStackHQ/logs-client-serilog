@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../BetterStack.Logs.Serilog.csproj" /><!-- TODO: change to PackageReference -->
+    <PackageReference Include="../BetterStack.Logs.Serilog.csproj" Version="1.0.0" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />
   </ItemGroup>

@@ -3,7 +3,7 @@
 [![Better Stack dashboard](https://raw.githubusercontent.com/BetterStackHQ/logs-client-serilog/main/dashboard.png)](https://betterstack.com/logs)
 
 [![ISC License](https://img.shields.io/badge/license-ISC-ff69b4.svg)](LICENSE.md)
-[![Nuget version](https://badge.fury.io/nu/BetterStack.Logs.Serilog.svg)](https://www.nuget.org/packages/BetterStack.Logs.NLog)
+[![Nuget version](https://badge.fury.io/nu/BetterStack.Logs.Serilog.svg)](https://www.nuget.org/packages/BetterStack.Logs.Serilog)
 
 Experience SQL-compatible structured log management based on ClickHouse. [Learn more ⇗](https://betterstack.com/logs)
 

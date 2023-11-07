@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Logtail
+namespace BetterStack.Logs
 {
     /// <summary>
     /// The Drain class is responsible for maintaining a queue of log events that need
@@ -24,7 +24,7 @@ namespace Logtail
         private CancellationTokenSource cancellationTokenSource;
 
         /// <summary>
-        /// Initializes a Logtail drain and starts periodic logs delivery.
+        /// Initializes a Better Stack Logs drain and starts periodic logs delivery.
         /// </summary>
         public Drain(
             Client client,

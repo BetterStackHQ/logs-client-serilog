@@ -1,22 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <PackageId>Logtail</PackageId>
-    <Version>0.2.6</Version>
+    <PackageId>BetterStack.Logs.Serilog</PackageId>
+    <Version>1.0.0</Version>
     <Authors>Simon Rozsival, Tomas Hromada</Authors>
     <Company>Better Stack</Company>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageProjectUrl>https://logtail.com</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/logtail/logtail-dotnet</RepositoryUrl>
+    <PackageProjectUrl>https://logs.betterstack.com</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/BetterStackHQ/logs-client-serilog</RepositoryUrl>
     <RespositoryType>git</RespositoryType>
-    <Tags>logging logtail livetail nlog</Tags>
+    <Tags>betterstack logging livetail serilog</Tags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
-    <DefaultItemExcludes>$(DefaultItemExcludes);example-project/**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);example-project/**;dashboard.png</DefaultItemExcludes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
@@ -37,7 +37,8 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="NLog" Version="4.7.11" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="7.0.0" />
+    <PackageReference Include="Serilog.Sinks.Http" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

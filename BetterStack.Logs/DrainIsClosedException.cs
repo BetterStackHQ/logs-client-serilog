@@ -1,6 +1,6 @@
 using System;
 
-namespace Logtail
+namespace BetterStack.Logs
 {
     public sealed class DrainIsClosedException : Exception
     {

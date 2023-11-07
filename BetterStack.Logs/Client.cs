@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-namespace Logtail
+namespace BetterStack.Logs
 {
     /// <summary>
-    /// The Client class is responsible for reliable delivery of logs
-    /// to the Logtail servers.
+    /// The Client class is responsible for reliable delivery of logs to the Better Stack servers.
     /// </summary>
     public sealed class Client
     {
@@ -25,7 +24,7 @@ namespace Logtail
 
         public Client(
             string sourceToken,
-            string endpoint = "https://in.logtail.com",
+            string endpoint = "https://in.logs.betterstack.com",
             TimeSpan? timeout = null,
             int retries = 10
         )

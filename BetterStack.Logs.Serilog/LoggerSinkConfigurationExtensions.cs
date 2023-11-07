@@ -5,7 +5,6 @@ using Serilog.Events;
 using Serilog.Formatting;
 using Serilog.Sinks.Http.BatchFormatters;
 using Serilog.Sinks.Http.Private.NonDurable;
-using Serilog.Sinks.Http.TextFormatters;
 using System;
 
 namespace Serilog
@@ -64,7 +63,7 @@ namespace Serilog
                 logEventsInBatchLimit: batchSize,
                 batchSizeLimitBytes: null,
                 period: batchInterval.Value,
-                textFormatter: new NormalRenderedTextFormatter(),
+                textFormatter: new BetterStackTextFormatter(),
                 batchFormatter: new ArrayBatchFormatter(),
                 httpClient: new BetterStackHttpClient(sourceToken));
 

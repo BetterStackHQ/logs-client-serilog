@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <PackageId>BetterStack.Logs.NLog</PackageId>
+    <PackageId>BetterStack.Logs.Serilog</PackageId>
     <Version>1.0.0</Version>
     <Authors>Simon Rozsival, Tomas Hromada</Authors>
     <Company>Better Stack</Company>
@@ -8,9 +8,9 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <PackageProjectUrl>https://logs.betterstack.com</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/BetterStackHQ/logs-client-nlog</RepositoryUrl>
+    <RepositoryUrl>https://github.com/BetterStackHQ/logs-client-serilog</RepositoryUrl>
     <RespositoryType>git</RespositoryType>
-    <Tags>betterstack logging livetail nlog</Tags>
+    <Tags>betterstack logging livetail serilog</Tags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
@@ -37,7 +37,8 @@
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="NLog" Version="4.7.11" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="7.0.0" />
+    <PackageReference Include="Serilog.Sinks.Http" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

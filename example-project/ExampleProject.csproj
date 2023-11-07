@@ -8,14 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BetterStack.Logs.NLog" Version="1.0.0" />
-    <PackageReference Include="NLog.Extensions.Logging" Version="1.7.5" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="nlog.config">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <ProjectReference Include="../BetterStack.Logs.Serilog.csproj" /><!-- TODO: change to PackageReference -->
+    <PackageReference Include="Serilog.Extensions.Logging" Version="7.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="4.1.0" />
   </ItemGroup>
 
 </Project>

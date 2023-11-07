@@ -29,7 +29,7 @@ Log.Debug("Debugging is hard, but can be easier with Better Stack!");
 // Send informative messages about application progress using the Info() method
 // All of the properties that you pass to the log will be stored in a structured
 // form in the context section of the logged event
-Log.Information("User {user} - {userID} just ordered item {item}", "Josh", 95845, 75423);
+Log.Information("User {User} - {UserId} just ordered item {Item}", "Josh", 95845, 75423);
 
 // Use context to tag events with additional data
 var loggerWithContext = Log.ForContext<Program>()

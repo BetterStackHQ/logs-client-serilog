@@ -106,10 +106,8 @@ Log.Logger = new LoggerConfiguration()
 
 ## Structuring the logs
 
-All of the properties that you pass to the log will be stored in a structured form in the `context` section of the logged event.
+All of the properties that you pass to the log will be stored in a structured form in the `properties` section of the logged event.
 
 ```csharp
-Log.Info("User {user} - {userID} just ordered item {item}", "Josh", 95845, 75423);
+Log.Info("User {User} - {UserId} just ordered item {Item}", "Josh", 95845, 75423);
 ```
-
-A new field called `properties` is added into the `context` and it contains the arguments that were passed and their values.

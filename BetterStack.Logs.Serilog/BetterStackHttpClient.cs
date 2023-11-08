@@ -40,7 +40,7 @@ namespace BetterStack.Logs.Serilog
         /// <inheritdoc />
         public virtual async Task<HttpResponseMessage> PostAsync(string requestUri, Stream contentStream)
         {
-            using var content = new StreamContent(contentStream);
+            var content = new StreamContent(contentStream);
             content.Headers.Add("Content-Type", "application/json");
 
             var response = await httpClient

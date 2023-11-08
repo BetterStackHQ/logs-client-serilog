@@ -1,3 +1,5 @@
+#nullable enable
+
 using BetterStack.Logs.Serilog;
 using Serilog.Configuration;
 using Serilog.Core;

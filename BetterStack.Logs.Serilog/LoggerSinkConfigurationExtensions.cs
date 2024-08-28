@@ -65,6 +65,7 @@ namespace Serilog
                 logEventsInBatchLimit: batchSize,
                 batchSizeLimitBytes: null,
                 period: batchInterval.Value,
+                flushOnClose: true,
                 textFormatter: new BetterStackTextFormatter(),
                 batchFormatter: new ArrayBatchFormatter(),
                 httpClient: new BetterStackHttpClient(sourceToken));

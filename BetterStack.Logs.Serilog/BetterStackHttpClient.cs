@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http.Headers;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Threading;
 using System;
 
 namespace BetterStack.Logs.Serilog
@@ -40,11 +41,17 @@ namespace BetterStack.Logs.Serilog
         /// <inheritdoc />
         public virtual async Task<HttpResponseMessage> PostAsync(string requestUri, Stream contentStream)
         {
-            var content = new StreamContent(contentStream);
-            content.Headers.Add("Content-Type", "application/json");
+            return await PostAsync(requestUri, contentStream, CancellationToken.None);
+        }
+
+        /// <inheritdoc />
+        public virtual async Task<HttpResponseMessage> PostAsync(string requestUri, Stream contentStream, CancellationToken cancellationToken)
+        {
+            using var content = new StreamContent(contentStream);
+            content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
             var response = await httpClient
-                .PostAsync(requestUri, content)
+                .PostAsync(requestUri, content, cancellationToken)
                 .ConfigureAwait(false);
 
             return response;

@@ -8,9 +8,8 @@ we have prepared a simple program that showcases the usage of BetterStack logger
 You can download the example project from GitHub directly or you can clone it to a select directory.
 
 ## Run the example project using Visual Studio
- 
-Replace `SOURCE_TOKEN` with your actual source token in the `Program.cs` file.
-You can find your source token by going to [Better Stack Logs](https://logs.betterstack.com/dashboard) -> Sources -> Edit.
+
+_Replace `<source_token>` and `<ingesting_host>` in the `Program.cs` file with your actual source token and ingesting host which you can find by going to **[Sources](https://telemetry.betterstack.com/team/0/sources) -> Configure** in Better Stack._
 
 Open the `ExampleProject.csproj` file in the Visual Studio.
 Then click on the green play button `ExampleProject` or press **F5** to run the application.
@@ -23,8 +22,7 @@ All done! Now, you can check Better Stack to see your logs
 
 ## Run in the command line
 
-Replace `SOURCE_TOKEN` with your actual source token in the `Program.cs` file.
-You can find your source token by going to [Better Stack Logs](https://logs.betterstack.com/dashboard) -> Sources -> Edit.
+_Replace `<source_token>` and `<ingesting_host>` in the `Program.cs` file with your actual source token and ingesting host which you can find by going to **[Sources](https://telemetry.betterstack.com/team/0/sources) -> Configure** in Better Stack._
 
 Open the command line in the project's directory and enter the following command:
 
@@ -51,7 +49,10 @@ using Serilog;
 
 // Create logger
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.BetterStack(sourceToken: "SOURCE_TOKEN")
+    .WriteTo.BetterStack(
+        sourceToken: "<source_token>",
+        betterStackEndpoint: "<ingesting_host>"
+    )
     .CreateLogger();
 ```
 
@@ -96,7 +97,8 @@ You can adjust this behavior by setting the `queueLimitBytes`, `batchSize`, and 
 // Create logger
 Log.Logger = new LoggerConfiguration()
     .WriteTo.BetterStack(
-        sourceToken: "SOURCE_TOKEN",
+        sourceToken: "<source_token>",
+        betterStackEndpoint: "<ingesting_host>",
         queueLimitBytes: 100 * 1024 * 1024,
         batchSize: 100,
         batchInterval: TimeSpan.FromSeconds(30)

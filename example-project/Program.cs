@@ -8,7 +8,10 @@ using Serilog;
 
 // Create logger
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.BetterStack(sourceToken: "SOURCE_TOKEN")
+    .WriteTo.BetterStack(
+        sourceToken: "<source_token>",
+        betterStackEndpoint: "<ingesting_host>"
+    )
     .WriteTo.Console()
     .MinimumLevel.Debug()
     .CreateLogger();

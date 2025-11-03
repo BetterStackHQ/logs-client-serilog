@@ -23,6 +23,10 @@ namespace BetterStack.Logs.Serilog
         /// <param name="sourceToken">
         /// Your source token (taken from https://logs.betterstack.com/dashboard -> Sources -> Edit)
         /// </param>
+        /// <param name="httpClientHandler">
+        /// Optional HttpClientHandler to configure the HttpClient.
+        /// </param>
+        #nullable enable
         public BetterStackHttpClient(string sourceToken, HttpClientHandler? httpClientHandler = null)
         {
             if (httpClientHandler != null)

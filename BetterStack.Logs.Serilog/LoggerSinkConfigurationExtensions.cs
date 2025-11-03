@@ -8,7 +8,7 @@ using Serilog.Formatting;
 using Serilog.Sinks.Http.BatchFormatters;
 using Serilog.Sinks.Http.Private.NonDurable;
 using System;
-using System.Net;
+using System.Net.Http;
 
 namespace Serilog
 {

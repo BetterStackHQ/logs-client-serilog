@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
+using System.Net;
 
 namespace BetterStack.Logs.Serilog
 {
@@ -22,9 +23,16 @@ namespace BetterStack.Logs.Serilog
         /// <param name="sourceToken">
         /// Your source token (taken from https://logs.betterstack.com/dashboard -> Sources -> Edit)
         /// </param>
-        public BetterStackHttpClient(string sourceToken)
+        public BetterStackHttpClient(string sourceToken, HttpClientHandler? httpClientHandler = null)
         {
-            this.httpClient = new HttpClient();
+            if (httpClientHandler != null)
+            {
+                this.httpClient = new HttpClient(httpClientHandler);
+            }
+            else
+            {
+                this.httpClient = new HttpClient();
+            }            
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sourceToken);
         }
 

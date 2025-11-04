@@ -8,6 +8,7 @@ using Serilog.Formatting;
 using Serilog.Sinks.Http.BatchFormatters;
 using Serilog.Sinks.Http.Private.NonDurable;
 using System;
+using System.Net.Http;
 
 namespace Serilog
 {
@@ -51,7 +52,8 @@ namespace Serilog
             int? batchSize = null,
             TimeSpan? batchInterval = null,
             LogEventLevel restrictedToMinimumLevel = LevelAlias.Minimum,
-            LoggingLevelSwitch? levelSwitch = null)
+            LoggingLevelSwitch? levelSwitch = null,
+            HttpClientHandler? httpClientHandler = null)
         {
             if (sinkConfiguration == null) throw new ArgumentNullException(nameof(sinkConfiguration));
 
@@ -68,7 +70,7 @@ namespace Serilog
                 flushOnClose: true,
                 textFormatter: new BetterStackTextFormatter(),
                 batchFormatter: new ArrayBatchFormatter(),
-                httpClient: new BetterStackHttpClient(sourceToken));
+                httpClient: new BetterStackHttpClient(sourceToken, httpClientHandler));
 
             return sinkConfiguration.Sink(sink, restrictedToMinimumLevel, levelSwitch);
         }

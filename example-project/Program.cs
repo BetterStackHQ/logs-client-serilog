@@ -10,7 +10,7 @@ using Serilog;
 Log.Logger = new LoggerConfiguration()
     .WriteTo.BetterStack(
         sourceToken: "<source_token>",
-        betterStackEndpoint: "<ingesting_host>"
+        betterStackEndpoint: "https://<ingesting_host>"
     )
     .WriteTo.Console()
     .MinimumLevel.Debug()

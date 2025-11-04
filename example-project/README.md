@@ -51,7 +51,7 @@ using Serilog;
 Log.Logger = new LoggerConfiguration()
     .WriteTo.BetterStack(
         sourceToken: "<source_token>",
-        betterStackEndpoint: "<ingesting_host>"
+        betterStackEndpoint: "https://<ingesting_host>"
     )
     .CreateLogger();
 ```
@@ -98,7 +98,7 @@ You can adjust this behavior by setting the `queueLimitBytes`, `batchSize`, and 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.BetterStack(
         sourceToken: "<source_token>",
-        betterStackEndpoint: "<ingesting_host>",
+        betterStackEndpoint: "https://<ingesting_host>",
         queueLimitBytes: 100 * 1024 * 1024,
         batchSize: 100,
         batchInterval: TimeSpan.FromSeconds(30)

@@ -18,6 +18,11 @@ namespace Serilog
     /// </summary>
     public static class LoggerSinkConfigurationExtensions
     {
+        // Better Stack rejects a request over 10 MB, and the sink would retry that batch for ever. The sink sizes a batch
+        // by its formatted events alone, so the limit leaves room for the JSON array around them. An event over the limit
+        // would not fit in any batch and is dropped when it is logged.
+        private const long SizeLimitBytes = 5 * 1024 * 1024;
+
         /// <summary>
         /// Adds a sink that sends log events to Better Stack using preconfigured Serilog.Sinks.Http
         /// The log events are stored in memory in the case that the log server cannot be reached.
@@ -34,6 +39,7 @@ namespace Serilog
         /// </param>
         /// <param name="batchSize">
         /// The maximum number of log events sent as a single batch. Default value is 1000.
+        /// A batch is also kept under 5 MB, and a single log event over 5 MB is dropped.
         /// </param>
         /// <param name="batchInterval">
         /// The maximum time before sending logs to Better Stack. Default value is 1 second.
@@ -92,9 +98,9 @@ namespace Serilog
             var sink = new HttpSink(
                 requestUri: betterStackEndpoint,
                 queueLimitBytes: queueLimitBytes,
-                logEventLimitBytes: null,
+                logEventLimitBytes: SizeLimitBytes,
                 logEventsInBatchLimit: batchSize,
-                batchSizeLimitBytes: null,
+                batchSizeLimitBytes: SizeLimitBytes,
                 period: batchInterval.Value,
                 flushOnClose: true,
                 textFormatter: new BetterStackTextFormatter(outputTemplate, formatProvider),

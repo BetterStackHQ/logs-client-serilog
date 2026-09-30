@@ -55,6 +55,3 @@ jobs:
       - run: dotnet restore example-project --source packages --source https://api.nuget.org/v3/index.json
       # The placeholder endpoint in Program.cs is not a valid URL, so the example logs to the console and sends nothing
       - run: dotnet run --project example-project --no-restore
-        env:
-          # Run on the installed runtime whatever framework the example targets
-          DOTNET_ROLL_FORWARD: Major

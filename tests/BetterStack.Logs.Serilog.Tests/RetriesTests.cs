@@ -31,7 +31,8 @@ namespace BetterStack.Logs.Serilog.Tests
         [InlineData("429 Too Many Requests", (HttpStatusCode)429,
             "A batch of logs was dropped after 11 attempts to send it to Better Stack. Last failure: 429 Too Many Requests. Response: Oops")]
         [InlineData("reset", HttpStatusCode.ServiceUnavailable,
-            "A batch of logs was dropped after 11 attempts to send it to Better Stack. Last failure: System.Net.Http.HttpRequestException: Connection reset by peer")]
+            "A batch of logs was dropped after 11 attempts to send it to Better Stack. Last failure: " +
+            "System.Net.Http.HttpRequestException: An error occurred while sending the request. --> System.IO.IOException: Connection reset by peer")]
         [InlineData("timeout", HttpStatusCode.ServiceUnavailable,
             "A batch of logs was dropped after 11 attempts to send it to Better Stack. Last failure: System.Threading.Tasks.TaskCanceledException: A task was canceled.")]
         public async Task DropsBatchAfterTenRetries(string failure, HttpStatusCode failedStatus, string expectedSelfLog)
@@ -209,7 +210,8 @@ namespace BetterStack.Logs.Serilog.Tests
             switch (failure)
             {
                 case "reset":
-                    throw new HttpRequestException("Connection reset by peer");
+                    // Like HttpClient on .NET, which says what went wrong only in the inner exception
+                    throw new HttpRequestException("An error occurred while sending the request.", new IOException("Connection reset by peer"));
                 case "timeout":
                     throw new TaskCanceledException();
                 default:

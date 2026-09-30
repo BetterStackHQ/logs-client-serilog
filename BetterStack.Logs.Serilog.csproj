@@ -10,6 +10,7 @@
     <PackageProjectUrl>https://logs.betterstack.com</PackageProjectUrl>
     <RepositoryUrl>https://github.com/BetterStackHQ/logs-client-serilog</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <Description>Serilog sink for sending logs to Better Stack.</Description>
     <PackageTags>betterstack logging livetail serilog</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>

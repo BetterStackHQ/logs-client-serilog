@@ -2,15 +2,17 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
+    <!-- Run on a newer .NET runtime when .NET 8 is not installed -->
+    <RollForward>Major</RollForward>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BetterStack.Logs.Serilog" Version="1.2.*" />
-    <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.*" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.*" />
+    <PackageReference Include="BetterStack.Logs.Serilog" Version="1.*" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="10.0.*" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.*" />
   </ItemGroup>
 
 </Project>

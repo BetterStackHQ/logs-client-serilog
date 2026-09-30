@@ -119,7 +119,9 @@ namespace BetterStack.Logs.Serilog
 
             var message = new StringWriter();
             messageFormatter.Format(logEvent, message);
-            return message.ToString();
+
+            // Templates written for files and consoles end with {NewLine}{Exception}, which leaves a line break at the end
+            return message.ToString().TrimEnd('\r', '\n');
         }
     }
 }

@@ -28,6 +28,18 @@ namespace BetterStack.Logs.Serilog.Tests
         }
 
         [Fact]
+        public void TrimsLineBreaksAtTheEndOfTheMessage()
+        {
+            var formatter = new BetterStackTextFormatter("[{Level:u3}] {Message:lj}{NewLine}{Exception}", null);
+
+            Assert.Equal(
+                "{\"dt\":\"2026-01-02T01:04:05.0060000Z\",\"level\":\"INFO\"," +
+                "\"message\":\"[INF] User Josh paid 12.5\",\"messageTemplate\":\"User {User} paid {Total}\"," +
+                "\"properties\":{\"User\":\"Josh\",\"Total\":12.5,\"SourceContext\":\"Orders\"}}" + Environment.NewLine,
+                Format(formatter));
+        }
+
+        [Fact]
         public void RendersMessageWithOutputTemplateAndFormatProvider()
         {
             var formatter = new BetterStackTextFormatter("[{Level:u3}] {Message:l}", new NumberFormatInfo { NumberDecimalSeparator = "," });
@@ -78,7 +90,7 @@ namespace BetterStack.Logs.Serilog.Tests
             var logEvent = Assert.Single(receiver.Events);
             Assert.Equal(
                 "03:04:05 [ERR] Orders - Payment of 12.5 failed" + Environment.NewLine +
-                "System.InvalidOperationException: Card declined" + Environment.NewLine,
+                "System.InvalidOperationException: Card declined",
                 (string)logEvent["message"]!);
             Assert.Equal("2026-01-02T01:04:05.0060000Z", (string)logEvent["dt"]!);
             Assert.Equal("ERROR", (string)logEvent["level"]!);

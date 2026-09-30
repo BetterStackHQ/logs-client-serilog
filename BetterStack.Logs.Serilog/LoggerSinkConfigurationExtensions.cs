@@ -8,6 +8,7 @@ using Serilog.Formatting;
 using Serilog.Sinks.Http.BatchFormatters;
 using Serilog.Sinks.Http.Private.NonDurable;
 using System;
+using System.ComponentModel;
 using System.Net.Http;
 
 namespace Serilog
@@ -73,6 +74,31 @@ namespace Serilog
                 httpClient: new BetterStackHttpClient(sourceToken, httpClientHandler));
 
             return sinkConfiguration.Sink(sink, restrictedToMinimumLevel, levelSwitch);
+        }
+
+        /// <summary>
+        /// Keeps assemblies compiled against versions older than 1.2.0 working.
+        /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public static LoggerConfiguration BetterStack(
+            this LoggerSinkConfiguration sinkConfiguration,
+            string sourceToken,
+            string betterStackEndpoint,
+            long? queueLimitBytes,
+            int? batchSize,
+            TimeSpan? batchInterval,
+            LogEventLevel restrictedToMinimumLevel,
+            LoggingLevelSwitch? levelSwitch)
+        {
+            return sinkConfiguration.BetterStack(
+                sourceToken,
+                betterStackEndpoint,
+                queueLimitBytes,
+                batchSize,
+                batchInterval,
+                restrictedToMinimumLevel,
+                levelSwitch,
+                null);
         }
     }
 }

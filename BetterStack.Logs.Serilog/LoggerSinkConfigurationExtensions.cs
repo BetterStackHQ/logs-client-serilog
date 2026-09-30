@@ -23,6 +23,10 @@ namespace Serilog
         // would not fit in any batch and is dropped when it is logged.
         private const long SizeLimitBytes = 5 * 1024 * 1024;
 
+        // Events wait in memory while Better Stack cannot be reached, and a busy application would grow without bound
+        // during an outage. The Java client keeps at most 100000 events, which is about 300 MB at 3 KB per event.
+        private const long DefaultQueueLimitBytes = 300L * 1024 * 1024;
+
         /// <summary>
         /// Adds a sink that sends log events to Better Stack using preconfigured Serilog.Sinks.Http
         /// The log events are stored in memory in the case that the log server cannot be reached.
@@ -35,7 +39,8 @@ namespace Serilog
         /// The URI of the Better Stack endpoint your logs are sent to. Default value is https://in.logs.betterstack.com.
         /// </param>
         /// <param name="queueLimitBytes">
-        /// The maximum size of events stored in memory, waiting to be sent. Default value is null (no limit).
+        /// The maximum size of events stored in memory, waiting to be sent. Default value is 300 MB.
+        /// Events logged while the queue is full are dropped. Use <see cref="long.MaxValue"/> for no limit.
         /// </param>
         /// <param name="batchSize">
         /// The maximum number of log events sent as a single batch. Default value is 1000.
@@ -97,7 +102,7 @@ namespace Serilog
 
             var sink = new HttpSink(
                 requestUri: betterStackEndpoint,
-                queueLimitBytes: queueLimitBytes,
+                queueLimitBytes: queueLimitBytes ?? DefaultQueueLimitBytes,
                 logEventLimitBytes: SizeLimitBytes,
                 logEventsInBatchLimit: batchSize,
                 batchSizeLimitBytes: SizeLimitBytes,

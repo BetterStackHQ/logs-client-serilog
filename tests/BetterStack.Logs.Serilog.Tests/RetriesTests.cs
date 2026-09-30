@@ -61,6 +61,48 @@ namespace BetterStack.Logs.Serilog.Tests
             Assert.Single(selfLog, line => line.EndsWith(" " + expectedSelfLog));
         }
 
+        [Theory]
+        [InlineData(0, 1, "A batch of logs was dropped after 1 attempt to send it to Better Stack. Last failure: 500 Internal Server Error. Response: Oops")]
+        [InlineData(3, 4, "A batch of logs was dropped after 4 attempts to send it to Better Stack. Last failure: 500 Internal Server Error. Response: Oops")]
+        public async Task DropsBatchAfterConfiguredRetries(int retries, int attempts, string expectedSelfLog)
+        {
+            var handler = new ScriptedHandler(request => request <= attempts ? Fail("500 Internal Server Error") : Accept());
+            using var client = new BetterStackHttpClient("my-source-token", handler, retries);
+            var selfLog = new ConcurrentQueue<string>();
+            SelfLog.Enable(selfLog.Enqueue);
+
+            var statuses = new List<HttpStatusCode>();
+            try
+            {
+                for (var attempt = 1; attempt <= attempts; attempt++)
+                {
+                    statuses.Add((await Post(client, "[\"First\"]")).StatusCode);
+                }
+
+                statuses.Add((await Post(client, "[\"Second\"]")).StatusCode);
+            }
+            finally
+            {
+                SelfLog.Disable();
+            }
+
+            Assert.Equal(
+                Enumerable.Repeat(HttpStatusCode.InternalServerError, attempts - 1).Concat(new[] { HttpStatusCode.Accepted, HttpStatusCode.Accepted }),
+                statuses);
+            Assert.Equal(Enumerable.Repeat("[\"First\"]", attempts).Concat(new[] { "[\"Second\"]" }), handler.Bodies);
+            Assert.Single(selfLog, line => line.EndsWith(" " + expectedSelfLog));
+        }
+
+        [Fact]
+        public void RejectsNegativeRetries()
+        {
+            var e = Assert.Throws<ArgumentOutOfRangeException>(() => new LoggerConfiguration()
+                .WriteTo.BetterStack(sourceToken: "my-source-token", betterStackEndpoint: "http://127.0.0.1", retries: -1));
+
+            Assert.Equal("retries", e.ParamName);
+            Assert.Equal("retries", Assert.Throws<ArgumentOutOfRangeException>(() => new BetterStackHttpClient("my-source-token", null, -1)).ParamName);
+        }
+
         [Fact]
         public async Task DeliversBatchOnTheLastAttempt()
         {

@@ -61,6 +61,11 @@ namespace Serilog
         /// <param name="formatProvider">
         /// Supplies culture-specific formatting information for the message. Default value is null.
         /// </param>
+        /// <param name="maxFlushTime">
+        /// The maximum time closing the logger, e.g. with Log.CloseAndFlush(), waits for queued log events to be sent,
+        /// so an endpoint that cannot be reached does not hold the shutdown. Default value is 30 seconds,
+        /// <see cref="TimeSpan.Zero"/> or any value above about 24 days means no limit.
+        /// </param>
         public static LoggerConfiguration BetterStack(
             this LoggerSinkConfiguration sinkConfiguration,
             string sourceToken,
@@ -72,12 +77,15 @@ namespace Serilog
             LoggingLevelSwitch? levelSwitch = null,
             HttpClientHandler? httpClientHandler = null,
             string? outputTemplate = null,
-            IFormatProvider? formatProvider = null)
+            IFormatProvider? formatProvider = null,
+            TimeSpan? maxFlushTime = null)
         {
             if (sinkConfiguration == null) throw new ArgumentNullException(nameof(sinkConfiguration));
+            if (maxFlushTime < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(maxFlushTime), maxFlushTime, "maxFlushTime cannot be negative, TimeSpan.Zero or any value above about 24 days means no limit.");
 
             batchSize ??= 1000;
             batchInterval ??= TimeSpan.FromSeconds(1);
+            maxFlushTime ??= TimeSpan.FromSeconds(30);
 
             var sink = new HttpSink(
                 requestUri: betterStackEndpoint,
@@ -91,7 +99,39 @@ namespace Serilog
                 batchFormatter: new ArrayBatchFormatter(),
                 httpClient: new BetterStackHttpClient(sourceToken, httpClientHandler));
 
-            return sinkConfiguration.Sink(sink, restrictedToMinimumLevel, levelSwitch);
+            return sinkConfiguration.Sink(new MaxFlushTimeSink(sink, maxFlushTime.Value), restrictedToMinimumLevel, levelSwitch);
+        }
+
+        /// <summary>
+        /// Keeps assemblies compiled against version 1.3.0 working.
+        /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public static LoggerConfiguration BetterStack(
+            this LoggerSinkConfiguration sinkConfiguration,
+            string sourceToken,
+            string betterStackEndpoint,
+            long? queueLimitBytes,
+            int? batchSize,
+            TimeSpan? batchInterval,
+            LogEventLevel restrictedToMinimumLevel,
+            LoggingLevelSwitch? levelSwitch,
+            HttpClientHandler? httpClientHandler,
+            string? outputTemplate,
+            IFormatProvider? formatProvider)
+        {
+            // Naming maxFlushTime selects the overload above, this one would call itself otherwise
+            return sinkConfiguration.BetterStack(
+                sourceToken,
+                betterStackEndpoint,
+                queueLimitBytes,
+                batchSize,
+                batchInterval,
+                restrictedToMinimumLevel,
+                levelSwitch,
+                httpClientHandler,
+                outputTemplate,
+                formatProvider,
+                maxFlushTime: null);
         }
 
         /// <summary>

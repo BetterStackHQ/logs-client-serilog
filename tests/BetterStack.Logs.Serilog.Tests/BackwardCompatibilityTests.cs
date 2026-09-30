@@ -68,6 +68,34 @@ namespace BetterStack.Logs.Serilog.Tests
         }
 
         [Fact]
+        public void KeepsSinkMethodOfVersion130()
+        {
+            using var receiver = new Receiver();
+            var method = SinkMethod(
+                typeof(LoggerSinkConfiguration),
+                typeof(string),
+                typeof(string),
+                typeof(long?),
+                typeof(int?),
+                typeof(TimeSpan?),
+                typeof(LogEventLevel),
+                typeof(LoggingLevelSwitch),
+                typeof(HttpClientHandler),
+                typeof(string),
+                typeof(IFormatProvider));
+            var configuration = new LoggerConfiguration();
+
+            method!.Invoke(null, new object?[] { configuration.WriteTo, "my-source-token", receiver.Url, null, null, null, LogEventLevel.Verbose, null, null, "[{Level:u3}] {Message}", null });
+            using (var logger = configuration.CreateLogger())
+            {
+                logger.Information("Hello");
+            }
+
+            Assert.Equal("Bearer my-source-token", Assert.Single(receiver.Requests).Authorization);
+            Assert.Equal("[INF] Hello", (string)Assert.Single(receiver.Events)["message"]!);
+        }
+
+        [Fact]
         public void KeepsTextFormatterConstructor()
         {
             Assert.NotNull(typeof(BetterStackTextFormatter).GetConstructor(Type.EmptyTypes));
@@ -91,12 +119,14 @@ namespace BetterStack.Logs.Serilog.Tests
             using (var logger = new LoggerConfiguration()
                 .WriteTo.BetterStack("my-source-token", receiver.Url, null, null, null, LogEventLevel.Verbose, null)
                 .WriteTo.BetterStack("my-source-token", receiver.Url, null, null, null, LogEventLevel.Verbose, null, null)
+                .WriteTo.BetterStack("my-source-token", receiver.Url, null, null, null, LogEventLevel.Verbose, null, null, null, null)
+                .WriteTo.BetterStack("my-source-token", receiver.Url, null, null, null, LogEventLevel.Verbose, null, null, null, null, null)
                 .CreateLogger())
             {
                 logger.Information("Hello");
             }
 
-            Assert.Equal(new[] { "Hello", "Hello" }, receiver.Events.Select(logEvent => (string)logEvent["message"]!));
+            Assert.Equal(new[] { "Hello", "Hello", "Hello", "Hello" }, receiver.Events.Select(logEvent => (string)logEvent["message"]!));
         }
 
         // Serilog.Sinks.Http has a class of the same name, so the type cannot be referenced directly

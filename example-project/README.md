@@ -69,7 +69,7 @@ It provides 6 logging methods for the 6 default log levels. The log levels and t
 
 - **VERBOSE** - Trace the code or add detailed debugging info using the `Verbose()` method
 - **DEBUG** - Send debug messages using the `Debug()` method
-- **INFORMATION** - Send informative messages about the application progress using the `Information()` method
+- **INFORMATION** (sent to Better Stack as `INFO`) - Send informative messages about the application progress using the `Information()` method
 - **WARNING** - Report non-critical issues using the `Warning()` method
 - **ERROR** - Send messages about serious problems using the `Error()` method
 - **FATAL** - Report fatal errors that caused the application to crash using the `Fatal()` method
@@ -126,5 +126,5 @@ Log.Logger = new LoggerConfiguration()
 All of the properties that you pass to the log will be stored in a structured form in the `properties` section of the logged event.
 
 ```csharp
-Log.Info("User {User} - {UserId} just ordered item {Item}", "Josh", 95845, 75423);
+Log.Information("User {User} - {UserId} just ordered item {Item}", "Josh", 95845, 75423);
 ```

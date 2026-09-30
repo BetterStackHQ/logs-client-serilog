@@ -200,6 +200,25 @@ namespace BetterStack.Logs.Serilog.Tests
             Assert.Equal("Hello", (string)Assert.Single(receiver.Requests[1].Events)["message"]!);
         }
 
+        [Theory]
+        [InlineData(typeof(HttpRequestException))] // the server cannot be reached
+        [InlineData(typeof(TaskCanceledException))] // the request timed out
+        public void RetriesBatchAfterFailedRequest(Type failure)
+        {
+            using var receiver = new Receiver();
+            var handler = new FailingOnceHandler((Exception)Activator.CreateInstance(failure)!);
+
+            using (var logger = new LoggerConfiguration()
+                .WriteTo.BetterStack(sourceToken: "my-source-token", betterStackEndpoint: receiver.Url, batchInterval: TimeSpan.FromMilliseconds(100), httpClientHandler: handler)
+                .CreateLogger())
+            {
+                logger.Information("Hello");
+                Assert.True(SpinWait.SpinUntil(() => handler.Requests > 0, TimeSpan.FromSeconds(30)));
+            }
+
+            Assert.Equal("Hello", (string)Assert.Single(receiver.Events)["message"]!);
+        }
+
         [Fact]
         public void ReadsSinkFromJsonConfiguration()
         {
@@ -263,6 +282,29 @@ namespace BetterStack.Logs.Serilog.Tests
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             {
                 Interlocked.Increment(ref requests);
+                return base.SendAsync(request, cancellationToken);
+            }
+        }
+
+        private sealed class FailingOnceHandler : HttpClientHandler
+        {
+            private readonly Exception failure;
+            private int requests;
+
+            public FailingOnceHandler(Exception failure)
+            {
+                this.failure = failure;
+            }
+
+            public int Requests => requests;
+
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                if (Interlocked.Increment(ref requests) == 1)
+                {
+                    throw failure;
+                }
+
                 return base.SendAsync(request, cancellationToken);
             }
         }

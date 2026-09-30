@@ -91,6 +91,7 @@ Log.Error("Error occurred! And it's not good.");
 
 The BetterStack sink will send you logs periodically in batches to optimize network traffic with several retries in case of unexpected HTTP errors.
 You can adjust this behavior by setting the `queueLimitBytes`, `batchSize`, and `batchInterval` parameters to your custom values in your config.
+Logs waiting to be sent are kept in memory up to `queueLimitBytes`, 300 MB by default, and logs beyond it are dropped; set it to `long.MaxValue` for no limit.
 
 ```csharp
 

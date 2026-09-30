@@ -28,19 +28,33 @@ namespace BetterStack.Logs.Serilog
         /// </summary>
         /// <param name="outputTemplate">
         /// A message template describing the format of the message, e.g. "[{Level:u3}] {SourceContext} - {Message:lj}".
-        /// The log message is rendered on its own when null.
+        /// The log message is rendered on its own when null, empty or whitespace.
         /// </param>
         /// <param name="formatProvider">
         /// Supplies culture-specific formatting information for the message, or null.
         /// </param>
+        /// <exception cref="ArgumentException">The output template cannot format log events.</exception>
         public BetterStackTextFormatter(string? outputTemplate, IFormatProvider? formatProvider)
         {
             this.jsonValueFormatter = new JsonValueFormatter();
             this.formatProvider = formatProvider;
 
-            if (outputTemplate != null)
+            // An empty setting, e.g. an environment override, would blank the message of every event
+            if (!string.IsNullOrWhiteSpace(outputTemplate))
             {
-                this.messageFormatter = new MessageTemplateTextFormatter(outputTemplate, formatProvider);
+                // netstandard2.0 does not tell the compiler that IsNullOrWhiteSpace rules out null
+                this.messageFormatter = new MessageTemplateTextFormatter(outputTemplate!, formatProvider);
+
+                // A template that cannot format this event would drop every event, so it fails when the logger is configured
+                var probe = new LogEvent(DateTimeOffset.Now, LogEventLevel.Information, null, MessageTemplate.Empty, new LogEventProperty[0]);
+                try
+                {
+                    messageFormatter.Format(probe, new StringWriter());
+                }
+                catch (Exception e)
+                {
+                    throw new ArgumentException($"The output template {outputTemplate} cannot format log events: {e.Message}", nameof(outputTemplate), e);
+                }
             }
         }
 

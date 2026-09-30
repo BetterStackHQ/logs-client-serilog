@@ -58,7 +58,7 @@ namespace Serilog
         /// <param name="maxFlushTime">
         /// The maximum time closing the logger, e.g. with Log.CloseAndFlush(), waits for queued log events to be sent,
         /// so an endpoint that cannot be reached does not hold the shutdown. Default value is 30 seconds,
-        /// <see cref="TimeSpan.Zero"/> waits without a limit.
+        /// <see cref="TimeSpan.Zero"/> or any value above about 24 days means no limit.
         /// </param>
         /// <param name="retries">
         /// The number of times a batch of log events is sent again after its first attempt failed, before it is dropped,
@@ -82,7 +82,7 @@ namespace Serilog
             int? retries = null)
         {
             if (sinkConfiguration == null) throw new ArgumentNullException(nameof(sinkConfiguration));
-            if (maxFlushTime < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(maxFlushTime), maxFlushTime, "maxFlushTime cannot be negative, TimeSpan.Zero waits without a limit.");
+            if (maxFlushTime < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(maxFlushTime), maxFlushTime, "maxFlushTime cannot be negative, TimeSpan.Zero or any value above about 24 days means no limit.");
 
             batchSize ??= 1000;
             batchInterval ??= TimeSpan.FromSeconds(1);

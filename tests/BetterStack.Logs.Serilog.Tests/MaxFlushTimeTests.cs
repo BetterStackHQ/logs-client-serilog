@@ -85,6 +85,53 @@ namespace BetterStack.Logs.Serilog.Tests
             Assert.Equal(Enumerable.Range(1, 25), receiver.Events.Select(logEvent => (int)logEvent["properties"]!["Number"]!));
         }
 
+        // Task.Wait takes at most int.MaxValue milliseconds, about 24.8 days, TimeSpan.MaxValue is a common way to say "no limit"
+        public static TheoryData<TimeSpan> MaxFlushTimesAboveWaitLimit => new TheoryData<TimeSpan>
+        {
+            TimeSpan.FromDays(30),
+            TimeSpan.MaxValue,
+        };
+
+        [Theory]
+        [MemberData(nameof(MaxFlushTimesAboveWaitLimit))]
+        public void DeliversQueuedEventsBeforeDisposeReturnsWithMaxFlushTimeAboveWaitLimit(TimeSpan maxFlushTime)
+        {
+            using var receiver = new Receiver();
+            var logger = new LoggerConfiguration()
+                .WriteTo.BetterStack(
+                    sourceToken: "my-source-token",
+                    betterStackEndpoint: receiver.Url,
+                    batchSize: 10,
+                    batchInterval: TimeSpan.FromHours(1),
+                    maxFlushTime: maxFlushTime)
+                .CreateLogger();
+            for (var i = 1; i <= 25; i++)
+            {
+                logger.Information("Event {Number}", i);
+            }
+
+            WaitForDispose(logger.Dispose);
+
+            Assert.Equal(new[] { 10, 10, 5 }, receiver.Requests.Select(request => request.Events.Count()));
+            Assert.Equal(Enumerable.Range(1, 25), receiver.Events.Select(logEvent => (int)logEvent["properties"]!["Number"]!));
+        }
+
+        [Theory]
+        [InlineData("30.00:00:00")]
+        [InlineData("10675199.02:48:05.4775807")]
+        public void DeliversQueuedEventsBeforeDisposeReturnsWithMaxFlushTimeAboveWaitLimitFromJsonConfiguration(string maxFlushTime)
+        {
+            using var receiver = new Receiver();
+            var logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(Configuration(receiver.Url, @", ""maxFlushTime"": """ + maxFlushTime + @""""))
+                .CreateLogger();
+            logger.Information("Hello");
+
+            WaitForDispose(logger.Dispose);
+
+            Assert.Equal("Hello", (string)Assert.Single(receiver.Events)["message"]!);
+        }
+
         [Fact]
         public void RejectsNegativeMaxFlushTime()
         {

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Serilog.Debugging;
 using Serilog.Sinks.Http;
 using System.ComponentModel;
 using System.IO;
@@ -71,17 +72,39 @@ namespace BetterStack.Logs.Serilog
             using var content = new StreamContent(contentStream);
             content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
+            HttpResponseMessage response;
             try
             {
-                return await httpClient
+                response = await httpClient
                     .PostAsync(requestUri, content, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (Exception e) when (e is HttpRequestException || e is OperationCanceledException && !cancellationToken.IsCancellationRequested)
             {
-                // The sink drops the batch when sending throws, but keeps it for a retry after an unsuccessful response
-                return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = new StringContent(e.ToString()) };
+                // The sink drops the batch when sending throws, but keeps it for a retry after an unsuccessful response.
+                // The sink writes this body to SelfLog next to the status, so it has to say that Better Stack did not answer.
+                return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+                {
+                    Content = new StringContent($"The request to Better Stack could not be sent and will be retried: {e.GetType()}: {e.Message}")
+                };
             }
+
+            var status = (int)response.StatusCode;
+            if (status < 400 || status >= 500 || status == 408 || status == 429)
+            {
+                return response;
+            }
+
+            // Better Stack would reject the batch again on every retry, and the sink sends nothing else until it succeeds
+            var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            SelfLog.WriteLine(
+                "Better Stack rejected a batch of logs with {0}, the batch was dropped.{1} Response: {2}",
+                $"{status} {response.ReasonPhrase}",
+                status == 401 || status == 403 ? " Check the source token and the endpoint." : "",
+                body);
+            response.Dispose();
+
+            return new HttpResponseMessage(HttpStatusCode.Accepted);
         }
 
         /// <inheritdoc />

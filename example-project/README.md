@@ -106,6 +106,20 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
+## Message format
+
+The `message` of a log is the rendered log message. To format it differently, set `outputTemplate` to a [Serilog output template](https://github.com/serilog/serilog/wiki/Formatting-Output#formatting-plain-text), in code or in the `Args` of the sink in `appsettings.json`:
+
+```csharp
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.BetterStack(
+        sourceToken: "<source_token>",
+        betterStackEndpoint: "https://<ingesting_host>",
+        outputTemplate: "[{Level:u3}] {SourceContext} - {Message:lj}"
+    )
+    .CreateLogger();
+```
+
 ## Structuring the logs
 
 All of the properties that you pass to the log will be stored in a structured form in the `properties` section of the logged event.

@@ -106,7 +106,7 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
-When the logger is closed, e.g. with `Log.CloseAndFlush()`, it waits at most `maxFlushTime` for the queued logs to be sent, so an endpoint that cannot be reached does not hold the shutdown. The default is 30 seconds, `TimeSpan.Zero` waits without a limit. In `appsettings.json` it is written like `batchInterval`, e.g. `"maxFlushTime": "00:00:10"`.
+When the logger is closed, e.g. with `Log.CloseAndFlush()`, it waits at most `maxFlushTime` for the queued logs to be sent, so an endpoint that cannot be reached does not hold the shutdown. The default is 30 seconds, `TimeSpan.Zero` or any value above about 24 days means no limit. In `appsettings.json` it is written like `batchInterval`, e.g. `"maxFlushTime": "00:00:10"`.
 
 ```csharp
 Log.Logger = new LoggerConfiguration()

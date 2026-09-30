@@ -19,7 +19,9 @@ namespace BetterStack.Logs.Serilog
         private readonly TimeSpan maxFlushTime;
 
         /// <param name="sink">The sink sending the log events, which sends the queued ones when it is disposed.</param>
-        /// <param name="maxFlushTime">The maximum time to wait for them, <see cref="TimeSpan.Zero"/> for no limit.</param>
+        /// <param name="maxFlushTime">
+        /// The maximum time to wait for them, <see cref="TimeSpan.Zero"/> or any value above about 24 days for no limit.
+        /// </param>
         public MaxFlushTimeSink(HttpSink sink, TimeSpan maxFlushTime)
         {
             this.sink = sink;
@@ -37,7 +39,11 @@ namespace BetterStack.Logs.Serilog
             // A thread-pool thread is a background thread, so the flush left behind does not keep the process alive.
             var flush = Task.Run(sink.Dispose);
 
-            if (!flush.Wait(maxFlushTime == TimeSpan.Zero ? Timeout.InfiniteTimeSpan : maxFlushTime))
+            // Task.Wait takes at most int.MaxValue milliseconds (about 24.8 days) and throws for more, a longer maxFlushTime
+            // like TimeSpan.MaxValue is a way to say "no limit" too
+            var noLimit = maxFlushTime == TimeSpan.Zero || maxFlushTime > TimeSpan.FromMilliseconds(int.MaxValue);
+
+            if (!flush.Wait(noLimit ? Timeout.InfiniteTimeSpan : maxFlushTime))
             {
                 SelfLog.WriteLine("Gave up waiting for queued logs to be sent to Better Stack after {0} ms", maxFlushTime.TotalMilliseconds);
             }

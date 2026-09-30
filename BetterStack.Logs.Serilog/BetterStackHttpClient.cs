@@ -81,11 +81,18 @@ namespace BetterStack.Logs.Serilog
             }
             catch (Exception e) when (e is HttpRequestException || e is OperationCanceledException && !cancellationToken.IsCancellationRequested)
             {
+                // Like Exception.ToString() without the stack traces, a reset or a TLS failure says why only in an inner exception
+                var failure = $"{e.GetType()}: {e.Message}";
+                for (var inner = e.InnerException; inner != null; inner = inner.InnerException)
+                {
+                    failure += $" --> {inner.GetType()}: {inner.Message}";
+                }
+
                 // The sink drops the batch when sending throws, but keeps it for a retry after an unsuccessful response.
                 // The sink writes this body to SelfLog next to the status, so it has to say that Better Stack did not answer.
                 return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
                 {
-                    Content = new StringContent($"The request to Better Stack could not be sent and will be retried: {e.GetType()}: {e.Message}")
+                    Content = new StringContent($"The request to Better Stack could not be sent: {failure}")
                 };
             }
 

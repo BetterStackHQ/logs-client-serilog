@@ -62,11 +62,17 @@ namespace BetterStack.Logs.Serilog
             using var content = new StreamContent(contentStream);
             content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            var response = await httpClient
-                .PostAsync(requestUri, content, cancellationToken)
-                .ConfigureAwait(false);
-
-            return response;
+            try
+            {
+                return await httpClient
+                    .PostAsync(requestUri, content, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception e) when (e is HttpRequestException || e is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+            {
+                // The sink drops the batch when sending throws, but keeps it for a retry after an unsuccessful response
+                return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = new StringContent(e.ToString()) };
+            }
         }
 
         /// <inheritdoc />

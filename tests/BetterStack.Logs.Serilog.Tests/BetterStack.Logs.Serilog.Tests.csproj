@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(OS)' == 'Windows_NT'">$(TargetFrameworks);net48</TargetFrameworks>
+    <LangVersion>8.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <!--
+    The library is compiled against the dependency floors declared in its csproj. The versions referenced here are
+    the ones loaded when the tests run, exactly like in an application that uses newer Serilog packages than the
+    library was built with. Override them one by one, e.g. -p:SerilogVersion=4.4.0 -p:SerilogSinksHttpVersion=9.2.1,
+    or use -p:DependencySet=latest for the newest stable release of everything.
+  -->
+  <PropertyGroup Condition="'$(DependencySet)' == 'latest'">
+    <SerilogVersion Condition="'$(SerilogVersion)' == ''">4.*</SerilogVersion>
+    <SerilogSinksHttpVersion Condition="'$(SerilogSinksHttpVersion)' == ''">9.*</SerilogSinksHttpVersion>
+    <SerilogExtensionsLoggingVersion Condition="'$(SerilogExtensionsLoggingVersion)' == ''">10.*</SerilogExtensionsLoggingVersion>
+    <SerilogSettingsConfigurationVersion Condition="'$(SerilogSettingsConfigurationVersion)' == ''">10.*</SerilogSettingsConfigurationVersion>
+    <MicrosoftExtensionsConfigurationJsonVersion Condition="'$(MicrosoftExtensionsConfigurationJsonVersion)' == ''">10.*</MicrosoftExtensionsConfigurationJsonVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <SerilogVersion Condition="'$(SerilogVersion)' == ''">2.12.0</SerilogVersion>
+    <SerilogSinksHttpVersion Condition="'$(SerilogSinksHttpVersion)' == ''">9.0.0</SerilogSinksHttpVersion>
+    <SerilogExtensionsLoggingVersion Condition="'$(SerilogExtensionsLoggingVersion)' == ''">7.0.0</SerilogExtensionsLoggingVersion>
+    <SerilogSettingsConfigurationVersion Condition="'$(SerilogSettingsConfigurationVersion)' == ''">7.0.0</SerilogSettingsConfigurationVersion>
+    <MicrosoftExtensionsConfigurationJsonVersion Condition="'$(MicrosoftExtensionsConfigurationJsonVersion)' == ''">7.0.0</MicrosoftExtensionsConfigurationJsonVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../BetterStack.Logs.Serilog.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog" Version="$(SerilogVersion)" />
+    <PackageReference Include="Serilog.Sinks.Http" Version="$(SerilogSinksHttpVersion)" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="$(SerilogExtensionsLoggingVersion)" />
+    <PackageReference Include="Serilog.Settings.Configuration" Version="$(SerilogSettingsConfigurationVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="$(MicrosoftExtensionsConfigurationJsonVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+</Project>

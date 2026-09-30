@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.framework }}, ${{ matrix.dependencies }} dependencies
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        framework: [net8.0, net10.0]
+        # floor = the versions the library is built against, latest = the newest stable releases at the time of the run,
+        # see tests/BetterStack.Logs.Serilog.Tests/BetterStack.Logs.Serilog.Tests.csproj
+        dependencies: [floor, latest]
+        include:
+          - { os: windows-latest, framework: net48, dependencies: floor }
+          - { os: windows-latest, framework: net48, dependencies: latest }
+    env:
+      # MSBuild reads environment variables as properties, this one selects the dependency versions in the test project
+      DependencySet: ${{ matrix.dependencies }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - run: dotnet test tests/BetterStack.Logs.Serilog.Tests -f ${{ matrix.framework }}
+      - name: Show the dependency versions the tests ran with
+        run: dotnet list tests/BetterStack.Logs.Serilog.Tests package --framework ${{ matrix.framework }} --no-restore
+
+  pack:
+    name: Pack and run the example project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      # GeneratePackageOnBuild in the csproj makes a plain `dotnet pack` skip the build, which fails on a clean checkout.
+      # The version exists only in the local folder, so the example below cannot silently use a release from nuget.org.
+      - run: dotnet pack -c Release -o packages -p:GeneratePackageOnBuild=false -p:Version=0.0.0-ci
+      - run: unzip -l packages/BetterStack.Logs.Serilog.0.0.0-ci.nupkg
+      - run: dotnet add example-project package BetterStack.Logs.Serilog --version 0.0.0-ci --no-restore
+      - run: dotnet restore example-project --source packages --source https://api.nuget.org/v3/index.json
+      # The placeholder endpoint in Program.cs is not a valid URL, so the example logs to the console and sends nothing
+      - run: dotnet run --project example-project --no-restore
+        env:
+          # Run on the installed runtime whatever framework the example targets
+          DOTNET_ROLL_FORWARD: Major

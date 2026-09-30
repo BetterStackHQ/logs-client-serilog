@@ -18,7 +18,7 @@
   <PropertyGroup>
     <LangVersion>8.0</LangVersion>
     <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
-    <DefaultItemExcludes>$(DefaultItemExcludes);example-project/**;dashboard.png</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);example-project/**;tests/**;dashboard.png</DefaultItemExcludes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">

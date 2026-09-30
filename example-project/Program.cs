@@ -29,9 +29,9 @@ Log.Verbose("Tracing the code!");
 // Send debug messages using the Debug() method
 Log.Debug("Debugging is hard, but can be easier with Better Stack!");
 
-// Send informative messages about application progress using the Info() method
+// Send informative messages about application progress using the Information() method
 // All of the properties that you pass to the log will be stored in a structured
-// form in the context section of the logged event
+// form in the properties section of the logged event
 Log.Information("User {User} - {UserId} just ordered item {Item}", "Josh", 95845, 75423);
 
 // Use context to tag events with additional data
@@ -39,7 +39,7 @@ var loggerWithContext = Log.ForContext<Program>()
     .ForContext("ProcessId", 123)
     .ForContext("UserEmail", "user@example.com");
 
-// Report non-critical issues using the Warn() method
+// Report non-critical issues using the Warning() method
 loggerWithContext.Warning("Something is happening!");
 
 // Send message about serious problems using the Error() method

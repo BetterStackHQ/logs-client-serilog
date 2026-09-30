@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>BetterStack.Logs.Serilog</PackageId>
-    <Version>1.2.0</Version>
+    <!-- Releases are versioned by the Release workflow from git tags, this only labels local builds -->
+    <Version>0.0.0-dev</Version>
     <Authors>Simon Rozsival, Tomas Hromada</Authors>
     <Company>Better Stack</Company>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>

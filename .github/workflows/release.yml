@@ -1,0 +1,219 @@
+# Publishes BetterStack.Logs.Serilog to nuget.org from GitHub Actions, the way logtail-nextjs and
+# logtail-python release their packages. The release job runs in the "nuget" environment, so its
+# required reviewers are the release gate.
+#
+# The version lives in git tags only. A release takes the newest vX.Y.Z tag, bumps it, packs the
+# dispatched commit as that version and tags it. Nothing is committed, so the protected main
+# branch needs no bypass, and the <Version> in the project file only labels local builds.
+#
+# Authentication, either of:
+#   - Trusted publishing (OIDC), used when the NUGET_API_KEY secret does not exist. On nuget.org
+#     open Trusted Publishing and add a policy owned by the account or organization that owns the
+#     package: repository owner "BetterStackHQ", repository "logs-client-serilog", workflow file
+#     "release.yml", environment "nuget". Then set the repository variable NUGET_USER to the
+#     nuget.org profile name (not the e-mail) of whoever created the policy. nuget.org hands the
+#     workflow an API key that lives for an hour, no long-lived key exists anywhere.
+#   - The secret NUGET_API_KEY holding a nuget.org API key that may push new versions of
+#     BetterStack.Logs.Serilog. The workflow pushes with it whenever the secret exists.
+#
+# One-time setup on GitHub: create the "nuget" environment with required reviewers and deployment
+# branches limited to main. A job that references a missing environment creates it WITHOUT
+# protection.
+#
+# Release: Actions → Release → Run workflow from main, pick patch, minor or major, approve the
+# environment prompt. The workflow runs the CI checks, packs the library, pushes the tag vX.Y.Z,
+# pushes the package and its symbols to nuget.org and creates a GitHub release with auto-generated
+# notes for the tag; edit the notes afterwards if needed. After a major release, update the
+# version range of the package in example-project by hand.
+#
+# Retry: if a release failed after the tag was pushed, run "retry" right away from main. It tags
+# nothing, packs the tagged commit again, pushes the package unless nuget.org already has it and
+# creates the GitHub release if it is still missing. Running patch, minor or major again would
+# release the next version instead.
+#
+# Dry run: packs the bumped version and, with trusted publishing, exchanges the OIDC token with
+# nuget.org, which proves that the policy matches this workflow. Nothing is tagged or pushed.
+#
+# Rehearsal: every push that changes this file runs the verify and build jobs as the dry run of a
+# patch release, on any branch. The release job is skipped, because the environment and the OIDC
+# exchange are reserved for dispatched runs.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "patch, minor or major: tag and publish. retry: finish a release that failed halfway."
+        type: choice
+        options: [patch, minor, major, retry]
+        required: true
+      dry_run:
+        description: "Dry run: pack, verify nuget.org accepts this workflow, publish nothing"
+        type: boolean
+        default: false
+  push:
+    paths:
+      - .github/workflows/release.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  # Rehearsals never queue behind a release, nor a release behind them
+  group: ${{ github.event_name == 'workflow_dispatch' && 'release' || format('release-rehearsal-{0}', github.ref) }}
+  cancel-in-progress: false
+
+env:
+  RELEASE: ${{ inputs.release || 'patch' }}
+  # Anything but a dispatched run is a rehearsal, and a rehearsal is always a dry run
+  DRY_RUN: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run }}
+
+jobs:
+  verify:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Version and pack
+    needs: verify
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Releases run from main only
+        if: ${{ env.DRY_RUN != 'true' && github.ref != 'refs/heads/main' }}
+        run: |
+          echo "::error::Dispatch the release from main, not from $GITHUB_REF_NAME."
+          exit 1
+
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the version comes from the tags
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pick version
+        id: version
+        run: |
+          current=$(git tag --list | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 | sed 's/^v//')
+          if git tag --points-at HEAD | grep -qx "v$current"; then tagged=true; else tagged=false; fi
+
+          if [ "$RELEASE" = "retry" ]; then
+            if [ "$tagged" != "true" ]; then
+              echo "::error::retry only finishes a release whose tag v$current is on HEAD."
+              exit 1
+            fi
+            version=$current
+          else
+            if [ "$DRY_RUN" != "true" ] && [ "$tagged" = "true" ]; then
+              echo "::error::HEAD is already released as v$current, there is nothing new to release."
+              exit 1
+            fi
+            IFS=. read -r major minor patch <<< "$current"
+            case "$RELEASE" in
+              major) version="$((major + 1)).0.0" ;;
+              minor) version="$major.$((minor + 1)).0" ;;
+              patch) version="$major.$minor.$((patch + 1))" ;;
+            esac
+          fi
+
+          echo "$current -> $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Pack
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # The project packs on build (GeneratePackageOnBuild), which `dotnet pack` cannot be combined with
+          dotnet build --configuration Release -p:Version="$VERSION" -p:ContinuousIntegrationBuild=true -p:PackageOutputPath="$PWD/artifacts"
+          unzip -l "artifacts/BetterStack.Logs.Serilog.$VERSION.nupkg"
+          unzip -l "artifacts/BetterStack.Logs.Serilog.$VERSION.snupkg"
+          # SourceLink and the nuspec have to name the commit that gets tagged
+          unzip -p "artifacts/BetterStack.Logs.Serilog.$VERSION.nupkg" BetterStack.Logs.Serilog.nuspec | grep -F "commit=\"$GITHUB_SHA\""
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package
+          path: artifacts/
+          if-no-files-found: error
+
+  release:
+    name: Release
+    needs: build
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    environment: nuget
+    permissions:
+      contents: write # pushes the tag, creates the GitHub release
+      id-token: write # OIDC token exchange with nuget.org
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: package
+          path: artifacts/
+
+      - name: Pick authentication
+        id: auth
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -n "$NUGET_API_KEY" ]; then
+            echo "NUGET_API_KEY is set, pushing with the API key."
+            echo "oidc=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "No NUGET_API_KEY secret, using trusted publishing."
+            echo "oidc=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Fails unless a trusted publishing policy on nuget.org matches this workflow, which is all
+      # a dry run needs to prove. The key it returns is valid for an hour.
+      - name: NuGet login (OIDC)
+        id: login
+        if: ${{ steps.auth.outputs.oidc == 'true' }}
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Tag
+        if: ${{ !inputs.dry_run && inputs.release != 'retry' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Publish
+        if: ${{ !inputs.dry_run }}
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY || secrets.NUGET_API_KEY }}
+        run: |
+          args=(--api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json)
+          # A retry finds the version on nuget.org when only the GitHub release went missing
+          if [ "$RELEASE" = "retry" ]; then args+=(--skip-duplicate); fi
+          # The symbols package next to the nupkg is pushed along with it
+          dotnet nuget push "artifacts/BetterStack.Logs.Serilog.$VERSION.nupkg" "${args[@]}"
+
+      - name: Create GitHub release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "Release v$VERSION already exists."
+          else
+            # --verify-tag: only ever attach to the tag this workflow pushed, never create one here.
+            gh release create "v$VERSION" --verify-tag --generate-notes
+          fi

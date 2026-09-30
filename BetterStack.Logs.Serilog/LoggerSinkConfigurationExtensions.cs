@@ -45,6 +45,16 @@ namespace Serilog
         /// <param name="levelSwitch">
         /// A switch allowing the pass-through level to be changed at runtime.
         /// </param>
+        /// <param name="httpClientHandler">
+        /// Optional HttpClientHandler to configure the HttpClient.
+        /// </param>
+        /// <param name="outputTemplate">
+        /// A message template describing the format of the message sent to Better Stack,
+        /// e.g. "[{Level:u3}] {SourceContext} - {Message:lj}". Default value is null (the log message on its own).
+        /// </param>
+        /// <param name="formatProvider">
+        /// Supplies culture-specific formatting information for the message. Default value is null.
+        /// </param>
         public static LoggerConfiguration BetterStack(
             this LoggerSinkConfiguration sinkConfiguration,
             string sourceToken,
@@ -54,7 +64,9 @@ namespace Serilog
             TimeSpan? batchInterval = null,
             LogEventLevel restrictedToMinimumLevel = LevelAlias.Minimum,
             LoggingLevelSwitch? levelSwitch = null,
-            HttpClientHandler? httpClientHandler = null)
+            HttpClientHandler? httpClientHandler = null,
+            string? outputTemplate = null,
+            IFormatProvider? formatProvider = null)
         {
             if (sinkConfiguration == null) throw new ArgumentNullException(nameof(sinkConfiguration));
 
@@ -69,11 +81,39 @@ namespace Serilog
                 batchSizeLimitBytes: null,
                 period: batchInterval.Value,
                 flushOnClose: true,
-                textFormatter: new BetterStackTextFormatter(),
+                textFormatter: new BetterStackTextFormatter(outputTemplate, formatProvider),
                 batchFormatter: new ArrayBatchFormatter(),
                 httpClient: new BetterStackHttpClient(sourceToken, httpClientHandler));
 
             return sinkConfiguration.Sink(sink, restrictedToMinimumLevel, levelSwitch);
+        }
+
+        /// <summary>
+        /// Keeps assemblies compiled against version 1.2.0 working.
+        /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public static LoggerConfiguration BetterStack(
+            this LoggerSinkConfiguration sinkConfiguration,
+            string sourceToken,
+            string betterStackEndpoint,
+            long? queueLimitBytes,
+            int? batchSize,
+            TimeSpan? batchInterval,
+            LogEventLevel restrictedToMinimumLevel,
+            LoggingLevelSwitch? levelSwitch,
+            HttpClientHandler? httpClientHandler)
+        {
+            // Naming outputTemplate selects the overload above, this one would call itself otherwise
+            return sinkConfiguration.BetterStack(
+                sourceToken,
+                betterStackEndpoint,
+                queueLimitBytes,
+                batchSize,
+                batchInterval,
+                restrictedToMinimumLevel,
+                levelSwitch,
+                httpClientHandler,
+                outputTemplate: null);
         }
 
         /// <summary>
@@ -98,7 +138,8 @@ namespace Serilog
                 batchInterval,
                 restrictedToMinimumLevel,
                 levelSwitch,
-                null);
+                httpClientHandler: null,
+                outputTemplate: null);
         }
     }
 }

@@ -107,7 +107,7 @@ namespace BetterStack.Logs.Serilog.Tests
         {
             var selfLog = new ConcurrentQueue<string>();
             var prefix = " Received failed HTTP shipping result ServiceUnavailable: " +
-                "The request to Better Stack could not be sent and will be retried: System.Net.Http.HttpRequestException: ";
+                "The request to Better Stack could not be sent: System.Net.Http.HttpRequestException: ";
             SelfLog.Enable(selfLog.Enqueue);
 
             try
@@ -123,8 +123,38 @@ namespace BetterStack.Logs.Serilog.Tests
                 SelfLog.Disable();
             }
 
-            // The exception message follows on the same line, without the stack trace
+            // The exception messages follow on the same line, down to the refused socket, without the stack traces
+            Assert.Contains(selfLog, line => line.Contains(prefix) && line.Contains(" --> System.Net.Sockets.SocketException: "));
             Assert.DoesNotContain(selfLog, line => line.Contains(prefix) && line.Contains("\n"));
+        }
+
+        [Fact]
+        public void ReportsInnerExceptionsOfFailedRequestInSelfLog()
+        {
+            var selfLog = new ConcurrentQueue<string>();
+            var expected = " Received failed HTTP shipping result ServiceUnavailable: The request to Better Stack could not be sent: " +
+                "System.Net.Http.HttpRequestException: outer --> System.IO.IOException: Connection reset by peer";
+            SelfLog.Enable(selfLog.Enqueue);
+
+            try
+            {
+                using var logger = new LoggerConfiguration()
+                    .WriteTo.BetterStack(
+                        sourceToken: "my-source-token",
+                        betterStackEndpoint: "http://127.0.0.1/",
+                        batchInterval: TimeSpan.FromMilliseconds(100),
+                        httpClientHandler: new ThrowingHandler(new HttpRequestException("outer", new IOException("Connection reset by peer"))))
+                    .CreateLogger();
+                logger.Information("Hello");
+                Assert.True(SpinWait.SpinUntil(() => selfLog.Any(line => line.Contains("HttpRequestException: outer")), TimeSpan.FromSeconds(10)), string.Join(Environment.NewLine, selfLog));
+            }
+            finally
+            {
+                SelfLog.Disable();
+            }
+
+            // Both messages, and nothing after them like the stack trace of Exception.ToString()
+            Assert.Contains(selfLog, line => line.EndsWith(expected));
         }
 
         private static string ClosedEndpoint()
@@ -134,6 +164,21 @@ namespace BetterStack.Logs.Serilog.Tests
             var port = ((IPEndPoint)probe.LocalEndpoint).Port;
             probe.Stop();
             return $"http://127.0.0.1:{port}";
+        }
+
+        private sealed class ThrowingHandler : HttpClientHandler
+        {
+            private readonly Exception exception;
+
+            public ThrowingHandler(Exception exception)
+            {
+                this.exception = exception;
+            }
+
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                throw exception;
+            }
         }
 
         private sealed class RespondingHandler : HttpClientHandler

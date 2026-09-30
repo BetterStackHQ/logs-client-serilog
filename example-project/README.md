@@ -119,6 +119,8 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
+A batch that could not be sent is retried with a growing back-off, up to `retries` times (10 by default, about 40 minutes with the default `batchInterval`), and then dropped, so a batch that fails every time does not hold back the logs behind it. `retries: 0` sends every batch only once. In `appsettings.json` it is written as `"retries": 3`.
+
 ## Message format
 
 The `message` of a log is the rendered log message. To format it differently, set `outputTemplate` to a [Serilog output template](https://github.com/serilog/serilog/wiki/Formatting-Output#formatting-plain-text), in code or in the `Args` of the sink in `appsettings.json`:

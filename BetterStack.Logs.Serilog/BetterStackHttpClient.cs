@@ -17,7 +17,15 @@ namespace BetterStack.Logs.Serilog
     /// </summary>
     public class BetterStackHttpClient : IHttpClient
     {
+        // Mirrors the default retries of the NLog client
+        internal const int DefaultRetries = 10;
+
         private readonly HttpClient httpClient;
+        private readonly int retries;
+
+        // The sink sends one batch at a time and nothing else until it succeeds, so the failures in a row are attempts at
+        // the same batch, and no two requests run at once
+        private int failedAttempts;
 
         /// <summary>
         /// Initializes a new instance of the BetterStackHttpClient class with specified source token.
@@ -30,7 +38,29 @@ namespace BetterStack.Logs.Serilog
         /// </param>
         #nullable enable
         public BetterStackHttpClient(string sourceToken, HttpClientHandler? httpClientHandler = null)
+            : this(sourceToken, httpClientHandler, DefaultRetries)
         {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the BetterStackHttpClient class with specified source token and number of retries.
+        /// </summary>
+        /// <param name="sourceToken">
+        /// Your source token (taken from https://logs.betterstack.com/dashboard -> Sources -> Edit)
+        /// </param>
+        /// <param name="httpClientHandler">
+        /// Optional HttpClientHandler to configure the HttpClient.
+        /// </param>
+        /// <param name="retries">
+        /// The number of times a batch is sent again after its first attempt failed, before it is dropped. 0 sends a batch
+        /// only once.
+        /// </param>
+        public BetterStackHttpClient(string sourceToken, HttpClientHandler? httpClientHandler, int retries)
+        {
+            if (retries < 0) throw new ArgumentOutOfRangeException(nameof(retries), retries, "retries cannot be negative, 0 sends a batch only once.");
+
+            this.retries = retries;
+
             if (httpClientHandler != null)
             {
                 this.httpClient = new HttpClient(httpClientHandler);
@@ -88,6 +118,11 @@ namespace BetterStack.Logs.Serilog
                     failure += $" --> {inner.GetType()}: {inner.Message}";
                 }
 
+                if (IsLastAttempt())
+                {
+                    return Dropped(failure);
+                }
+
                 // The sink drops the batch when sending throws, but keeps it for a retry after an unsuccessful response.
                 // The sink writes this body to SelfLog next to the status, so it has to say that Better Stack did not answer.
                 return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
@@ -96,13 +131,27 @@ namespace BetterStack.Logs.Serilog
                 };
             }
 
-            var status = (int)response.StatusCode;
-            if (status < 400 || status >= 500 || status == 408 || status == 429)
+            if (response.IsSuccessStatusCode)
             {
+                failedAttempts = 0;
                 return response;
             }
 
+            var status = (int)response.StatusCode;
+            if (status < 400 || status >= 500 || status == 408 || status == 429)
+            {
+                if (!IsLastAttempt())
+                {
+                    return response;
+                }
+
+                var failure = $"{status} {response.ReasonPhrase}. Response: {await response.Content.ReadAsStringAsync().ConfigureAwait(false)}";
+                response.Dispose();
+                return Dropped(failure);
+            }
+
             // Better Stack would reject the batch again on every retry, and the sink sends nothing else until it succeeds
+            failedAttempts = 0;
             var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
             SelfLog.WriteLine(
                 "Better Stack rejected a batch of logs with {0}, the batch was dropped.{1} Response: {2}",
@@ -111,6 +160,29 @@ namespace BetterStack.Logs.Serilog
                 body);
             response.Dispose();
 
+            return new HttpResponseMessage(HttpStatusCode.Accepted);
+        }
+
+        // Counts a failed attempt at the current batch, and starts counting again for the next batch after the last one
+        private bool IsLastAttempt()
+        {
+            if (++failedAttempts <= retries)
+            {
+                return false;
+            }
+
+            failedAttempts = 0;
+            return true;
+        }
+
+        private HttpResponseMessage Dropped(string lastFailure)
+        {
+            // A batch that fails every time would otherwise hold back everything behind it for ever
+            SelfLog.WriteLine(
+                "A batch of logs was dropped after {0} {1} to send it to Better Stack. Last failure: {2}",
+                retries + 1,
+                retries == 0 ? "attempt" : "attempts",
+                lastFailure);
             return new HttpResponseMessage(HttpStatusCode.Accepted);
         }
 

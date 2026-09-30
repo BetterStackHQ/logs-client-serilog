@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Serilog.Sinks.Http;
+using System.ComponentModel;
 using System.IO;
 using System.Net.Http.Headers;
 using System.Net.Http;
@@ -38,6 +39,14 @@ namespace BetterStack.Logs.Serilog
                 this.httpClient = new HttpClient();
             }            
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", sourceToken);
+        }
+
+        /// <summary>
+        /// Keeps assemblies compiled against versions older than 1.2.0 working.
+        /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public BetterStackHttpClient(string sourceToken) : this(sourceToken, null)
+        {
         }
 
         ~BetterStackHttpClient()

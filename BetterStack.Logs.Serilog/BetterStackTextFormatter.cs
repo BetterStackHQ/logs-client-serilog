@@ -1,5 +1,8 @@
+#nullable enable
+
 using Serilog.Debugging;
 using Serilog.Events;
+using Serilog.Formatting.Display;
 using Serilog.Formatting.Json;
 using Serilog.Formatting;
 using System.IO;
@@ -13,10 +16,32 @@ namespace BetterStack.Logs.Serilog
     public class BetterStackTextFormatter : ITextFormatter
     {
         private readonly JsonValueFormatter jsonValueFormatter;
+        private readonly MessageTemplateTextFormatter? messageFormatter;
+        private readonly IFormatProvider? formatProvider;
 
-        public BetterStackTextFormatter()
+        public BetterStackTextFormatter() : this(null, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the BetterStackTextFormatter class with a custom format of the message.
+        /// </summary>
+        /// <param name="outputTemplate">
+        /// A message template describing the format of the message, e.g. "[{Level:u3}] {SourceContext} - {Message:lj}".
+        /// The log message is rendered on its own when null.
+        /// </param>
+        /// <param name="formatProvider">
+        /// Supplies culture-specific formatting information for the message, or null.
+        /// </param>
+        public BetterStackTextFormatter(string? outputTemplate, IFormatProvider? formatProvider)
         {
             this.jsonValueFormatter = new JsonValueFormatter();
+            this.formatProvider = formatProvider;
+
+            if (outputTemplate != null)
+            {
+                this.messageFormatter = new MessageTemplateTextFormatter(outputTemplate, formatProvider);
+            }
         }
 
         public void Format(LogEvent logEvent, TextWriter output)
@@ -53,8 +78,7 @@ namespace BetterStack.Logs.Serilog
             output.Write(level == "INFORMATION" ? "INFO" : level);
 
             output.Write("\",\"message\":");
-            var message = logEvent.MessageTemplate.Render(logEvent.Properties);
-            JsonValueFormatter.WriteQuotedJsonString(message, output);
+            JsonValueFormatter.WriteQuotedJsonString(RenderMessage(logEvent), output);
 
             output.Write(",\"messageTemplate\":");
             JsonValueFormatter.WriteQuotedJsonString(logEvent.MessageTemplate.Text, output);
@@ -84,6 +108,20 @@ namespace BetterStack.Logs.Serilog
             }
 
             output.Write('}');
+        }
+
+        private string RenderMessage(LogEvent logEvent)
+        {
+            if (messageFormatter == null)
+            {
+                return logEvent.MessageTemplate.Render(logEvent.Properties, formatProvider);
+            }
+
+            var message = new StringWriter();
+            messageFormatter.Format(logEvent, message);
+
+            // Templates written for files and consoles end with {NewLine}{Exception}, which leaves a line break at the end
+            return message.ToString().TrimEnd('\r', '\n');
         }
     }
 }

@@ -106,6 +106,18 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 ```
 
+When the logger is closed, e.g. with `Log.CloseAndFlush()`, it waits at most `maxFlushTime` for the queued logs to be sent, so an endpoint that cannot be reached does not hold the shutdown. The default is 30 seconds, `TimeSpan.Zero` waits without a limit. In `appsettings.json` it is written like `batchInterval`, e.g. `"maxFlushTime": "00:00:10"`.
+
+```csharp
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.BetterStack(
+        sourceToken: "<source_token>",
+        betterStackEndpoint: "https://<ingesting_host>",
+        maxFlushTime: TimeSpan.FromSeconds(10)
+    )
+    .CreateLogger();
+```
+
 ## Message format
 
 The `message` of a log is the rendered log message. To format it differently, set `outputTemplate` to a [Serilog output template](https://github.com/serilog/serilog/wiki/Formatting-Output#formatting-plain-text), in code or in the `Args` of the sink in `appsettings.json`:

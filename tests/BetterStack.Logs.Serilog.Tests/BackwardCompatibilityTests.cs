@@ -119,12 +119,14 @@ namespace BetterStack.Logs.Serilog.Tests
             using (var logger = new LoggerConfiguration()
                 .WriteTo.BetterStack("my-source-token", receiver.Url, null, null, null, LogEventLevel.Verbose, null)
                 .WriteTo.BetterStack("my-source-token", receiver.Url, null, null, null, LogEventLevel.Verbose, null, null)
+                .WriteTo.BetterStack("my-source-token", receiver.Url, null, null, null, LogEventLevel.Verbose, null, null, null, null)
+                .WriteTo.BetterStack("my-source-token", receiver.Url, null, null, null, LogEventLevel.Verbose, null, null, null, null, null)
                 .CreateLogger())
             {
                 logger.Information("Hello");
             }
 
-            Assert.Equal(new[] { "Hello", "Hello" }, receiver.Events.Select(logEvent => (string)logEvent["message"]!));
+            Assert.Equal(new[] { "Hello", "Hello", "Hello", "Hello" }, receiver.Events.Select(logEvent => (string)logEvent["message"]!));
         }
 
         // Serilog.Sinks.Http has a class of the same name, so the type cannot be referenced directly

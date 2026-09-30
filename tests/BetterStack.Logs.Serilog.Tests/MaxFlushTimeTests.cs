@@ -8,6 +8,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -22,6 +23,76 @@ namespace BetterStack.Logs.Serilog.Tests
     {
         // Well under the HttpClient timeout, so a test fails quickly when disposing is not limited
         private static readonly TimeSpan DisposeTimeout = TimeSpan.FromSeconds(10);
+
+        [Fact]
+        public void GivesUpWaitingForEndpointThatNeverAnswers()
+        {
+            using var endpoint = new SilentEndpoint();
+            var logger = new LoggerConfiguration()
+                .WriteTo.BetterStack(
+                    sourceToken: "my-source-token",
+                    betterStackEndpoint: endpoint.Url,
+                    batchInterval: TimeSpan.FromHours(1),
+                    maxFlushTime: TimeSpan.FromMilliseconds(500))
+                .CreateLogger();
+            logger.Information("Hello");
+
+            var selfLog = WaitForDispose(logger.Dispose);
+
+            Assert.Contains(selfLog, line => line.EndsWith(" Gave up waiting for queued logs to be sent to Better Stack after 500 ms"));
+        }
+
+        [Fact]
+        public void GivesUpWaitingForRequestInFlight()
+        {
+            using var endpoint = new SilentEndpoint();
+            var logger = new LoggerConfiguration()
+                .WriteTo.BetterStack(
+                    sourceToken: "my-source-token",
+                    betterStackEndpoint: endpoint.Url,
+                    batchInterval: TimeSpan.FromMilliseconds(100),
+                    maxFlushTime: TimeSpan.FromMilliseconds(500))
+                .CreateLogger();
+            logger.Information("Hello");
+            Assert.True(SpinWait.SpinUntil(endpoint.IsConnected, DisposeTimeout));
+
+            var selfLog = WaitForDispose(logger.Dispose);
+
+            Assert.Contains(selfLog, line => line.EndsWith(" Gave up waiting for queued logs to be sent to Better Stack after 500 ms"));
+        }
+
+        [Fact]
+        public void DeliversQueuedEventsBeforeDisposeReturnsWithoutLimit()
+        {
+            using var receiver = new Receiver();
+
+            using (var logger = new LoggerConfiguration()
+                .WriteTo.BetterStack(
+                    sourceToken: "my-source-token",
+                    betterStackEndpoint: receiver.Url,
+                    batchSize: 10,
+                    batchInterval: TimeSpan.FromHours(1),
+                    maxFlushTime: TimeSpan.Zero)
+                .CreateLogger())
+            {
+                for (var i = 1; i <= 25; i++)
+                {
+                    logger.Information("Event {Number}", i);
+                }
+            }
+
+            Assert.Equal(new[] { 10, 10, 5 }, receiver.Requests.Select(request => request.Events.Count()));
+            Assert.Equal(Enumerable.Range(1, 25), receiver.Events.Select(logEvent => (int)logEvent["properties"]!["Number"]!));
+        }
+
+        [Fact]
+        public void RejectsNegativeMaxFlushTime()
+        {
+            var e = Assert.Throws<ArgumentOutOfRangeException>(() => new LoggerConfiguration()
+                .WriteTo.BetterStack(sourceToken: "my-source-token", betterStackEndpoint: "http://127.0.0.1", maxFlushTime: TimeSpan.FromSeconds(-1)));
+
+            Assert.Equal("maxFlushTime", e.ParamName);
+        }
 
         [Theory]
         [InlineData("")]
@@ -148,6 +219,11 @@ namespace BetterStack.Logs.Serilog.Tests
             }
 
             public string Url { get; }
+
+            public bool IsConnected()
+            {
+                return listener.Pending();
+            }
 
             public void Dispose()
             {

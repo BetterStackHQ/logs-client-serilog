@@ -1,0 +1,228 @@
+name: E2E
+
+# Proves that the client still delivers logs to Better Stack. Every job creates its own dotnet source through the
+# Telemetry API, warms it up, runs example-project/ with `dotnet run` (what its README tells customers to do) with that
+# source's token and ingesting host, reads the stored rows back through the testing team's SQL API connection, checks
+# them exactly against e2e/expected.json (nothing missing, extra or duplicated), and deletes the source again, together
+# with sources of earlier runs left behind for more than 3 hours. e2e/plan.sh plans three legs:
+#   floor   .NET Framework 4.8 with the oldest packages the client declares: Serilog.Extensions.Logging, Serilog.Sinks.Http
+#           and Newtonsoft.Json as BetterStack.Logs.Serilog.csproj references them, and Serilog as the unit tests'
+#           floor dependency set pins it
+#   latest  the newest GA .NET SDK, with the newest releases of Serilog, Serilog.Sinks.Http, Serilog.Extensions.Logging
+#           and Newtonsoft.Json on nuget.org
+#   canary  the next .NET SDK as a preview, with a pre-release of each of those packages when one is newer
+# The example targets the leg's framework: net48, or the one of the leg's SDK (net10.0). The floor leg runs on
+# windows-latest, as .NET Framework needs Windows, latest and canary on ubuntu-latest, so a new runner image is covered
+# as well.
+# Every job pins the planned versions in the example and checks, before it creates a source, that the SDK, the runtime,
+# the client and the packages NuGet resolved are the planned ones, and writes them into its summary.
+# Pushes to main and pull requests pack the client from the checkout as release.yml does, as version 0.0.0-e2e, which
+# exists only in a local folder, and check that the example runs with exactly that build. The daily schedule takes the
+# newest release from nuget.org instead, which is what a customer gets today, through the example's own version range.
+# A failure on main or on the schedule files a Linear issue (notify_linear_failure.yml), at low priority when only the
+# canary failed. Pull requests from forks run only the plan: they get no secrets, so they cannot create a source.
+#
+# Secrets: TEST_TEAM_TELEMETRY_API, TEST_TEAM_CONNECTION_USERNAME, TEST_TEAM_CONNECTION_PASSWORD (Better Stack's E2E
+# testing team), LINEAR_* (see notify_linear_failure.yml).
+#
+# One leg, or exact versions: Actions → E2E → Run workflow, pick the leg and optionally set sdk-version (e.g. 10.0.100
+# or 11.0.100-rc.3.26522.148), serilog-version, sinks-http-version, extensions-logging-version or newtonsoft-version,
+# which replace the planned versions of every leg that runs. That is how a failure is bisected to one release.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '45 7 * * *'
+  workflow_dispatch:
+    inputs:
+      leg:
+        description: 'Leg to run'
+        type: choice
+        options: [all, floor, latest, canary]
+        default: all
+      source:
+        description: 'checkout: the client packed from this checkout, as the Release workflow packs it. nuget: its newest release on nuget.org, what a customer installs'
+        type: choice
+        options: [checkout, nuget]
+        default: checkout
+      sdk-version:
+        description: 'One exact .NET SDK version (e.g. 10.0.100) instead of the planned one'
+        type: string
+      serilog-version:
+        description: 'One exact Serilog version (e.g. 3.1.1) instead of the planned one'
+        type: string
+      sinks-http-version:
+        description: 'One exact Serilog.Sinks.Http version (e.g. 9.1.0) instead of the planned one'
+        type: string
+      extensions-logging-version:
+        description: 'One exact Serilog.Extensions.Logging version (e.g. 8.0.0) instead of the planned one'
+        type: string
+      newtonsoft-version:
+        description: 'One exact Newtonsoft.Json version (e.g. 13.0.3) instead of the planned one'
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # Git Bash on Windows, the same scripts as on Ubuntu.
+    shell: bash
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+
+    steps:
+      - name: "[Setup] Checkout code"
+        uses: actions/checkout@v7
+
+      - name: "[Setup] Plan the legs"
+        id: plan
+        env:
+          LEG: ${{ inputs.leg || 'all' }}
+          SDK_VERSION: ${{ inputs.sdk-version }}
+          SERILOG_VERSION: ${{ inputs.serilog-version }}
+          SINKS_HTTP_VERSION: ${{ inputs.sinks-http-version }}
+          EXTENSIONS_LOGGING_VERSION: ${{ inputs.extensions-logging-version }}
+          NEWTONSOFT_VERSION: ${{ inputs.newtonsoft-version }}
+          # The schedule tests what a customer installs today, pushes and pull requests test the checkout.
+          CLIENT_FROM: ${{ github.event_name == 'schedule' && 'nuget' || inputs.source || 'checkout' }}
+        run: |
+          MATRIX=$(bash e2e/plan.sh)
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          jq . <<<"$MATRIX"
+
+  test:
+    needs: plan
+    name: ${{ matrix.name }}
+    # Forks and Dependabot get no repository secrets, so their pull requests run only the plan.
+    if: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+
+    env:
+      LEG: ${{ matrix.leg }}
+      TFM: ${{ matrix.tfm }}
+      SDK: ${{ matrix.sdk }}
+      PACK_SDK: ${{ matrix.pack_sdk }}
+      RUNTIME: ${{ matrix.runtime }}
+      CLIENT_FROM: ${{ matrix.source }}
+      CLIENT: ${{ matrix.client }}
+      SERILOG: ${{ matrix.serilog }}
+      SINKS_HTTP: ${{ matrix.sinks_http }}
+      EXTENSIONS_LOGGING: ${{ matrix.extensions_logging }}
+      NEWTONSOFT: ${{ matrix.newtonsoft }}
+      CONSOLE: ${{ matrix.console }}
+      DOTNET_NOLOGO: 1
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+    steps:
+      # Git on the Windows image checks text files out with CRLF line endings, which bash cannot run.
+      - name: "[Setup] Check out files as committed"
+        if: ${{ runner.os == 'Windows' }}
+        run: git config --global core.autocrlf false
+
+      - name: "[Setup] Checkout code"
+        uses: actions/checkout@v7
+
+      # e2e/example.sh selects one of the two through global.json for each command.
+      - name: "[Setup] .NET SDK ${{ matrix.sdk }}, and ${{ matrix.pack_sdk }} as in release.yml"
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            ${{ matrix.pack_sdk }}
+            ${{ matrix.sdk }}
+
+      - name: "[Setup] Pack the client as release.yml does"
+        if: ${{ matrix.source == 'checkout' }}
+        run: bash e2e/example.sh pack
+
+      - name: "[Setup] Point the example at the leg's framework, client and packages"
+        run: bash e2e/example.sh install
+
+      - name: "[Verify] Installed versions are the planned ones"
+        run: bash e2e/example.sh versions
+
+      # Before a source is created: an example that cannot even build with these versions needs no round trip.
+      - name: "[Verify] The example builds with these versions"
+        run: bash e2e/example.sh build
+
+      - name: "[Setup] Create a source"
+        id: source
+        uses: ./.github/actions/create-source
+        with:
+          api-token: ${{ secrets.TEST_TEAM_TELEMETRY_API }}
+          name: e2e-serilog-gh${{ github.run_id }}a${{ github.run_attempt }}-${{ matrix.leg }}
+          platform: dotnet
+
+      - name: "[Test] Run the example project"
+        env:
+          BETTER_STACK_SOURCE_TOKEN: ${{ steps.source.outputs.token }}
+          BETTER_STACK_INGESTING_HOST: ${{ steps.source.outputs.ingesting-host }}
+        run: bash e2e/example.sh run
+
+      - name: "[Verify] Read the rows back"
+        uses: ./.github/actions/verify-logs
+        with:
+          connection-username: ${{ secrets.TEST_TEAM_CONNECTION_USERNAME }}
+          connection-password: ${{ secrets.TEST_TEAM_CONNECTION_PASSWORD }}
+          connect-host: ${{ steps.source.outputs.connect-host }}
+          collection: ${{ steps.source.outputs.collection }}
+          expected: e2e/expected.json
+
+      - name: "[Cleanup] Delete this job's source and stale ones of earlier runs"
+        if: ${{ always() }}
+        uses: ./.github/actions/cleanup-sources
+        with:
+          api-token: ${{ secrets.TEST_TEAM_TELEMETRY_API }}
+          prefix: e2e-serilog-
+          id: ${{ steps.source.outputs.id }}
+
+      - name: "[Report] Job summary"
+        if: ${{ always() }}
+        run: |
+          if [ -f out/summary.md ]; then
+            { echo; cat out/summary.md; } >> "$GITHUB_STEP_SUMMARY"
+            # The Linear issue names the job and links the run, so it gets the versions, the read-back and the
+            # cleanup only when that left something behind. Without a read-back summary the notifier takes the
+            # job's ::error:: lines instead, which name the versions.
+            mkdir -p report
+            { cat out/versions.md; echo; cat out/summary.md; } > report/summary.md
+            if grep -q '❌' out/cleanup.md 2>/dev/null; then { echo; cat out/cleanup.md; } >> report/summary.md; fi
+          else
+            { echo; echo "❌ Stopped before the rows were read back, see the failed step."; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f out/cleanup.md ]; then { echo; cat out/cleanup.md; } >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: "[Report] Hand the summary to the Linear issue"
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-summary-${{ matrix.name }}
+          path: report/summary.md
+          if-no-files-found: ignore
+          retention-days: 7
+          # A re-run attempt uploads under the same name.
+          overwrite: true
+
+  notify-linear:
+    if: ${{ failure() && (github.ref == 'refs/heads/main' || github.event_name == 'schedule') }}
+    needs: [test]
+    # The notifier reads the failed jobs, their summary artifacts and their annotations.
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+    uses: ./.github/workflows/notify_linear_failure.yml
+    with:
+      job_summaries: true
+    secrets: inherit

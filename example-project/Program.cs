@@ -6,18 +6,33 @@
  */
 using Serilog;
 
+// Read the source token and ingesting host from the environment
+var sourceToken = Environment.GetEnvironmentVariable("BETTER_STACK_SOURCE_TOKEN") ?? "";
+var ingestingHost = Environment.GetEnvironmentVariable("BETTER_STACK_INGESTING_HOST") ?? "";
+if (sourceToken == "" || ingestingHost == "")
+{
+    Console.Error.WriteLine("Usage: BETTER_STACK_SOURCE_TOKEN=<source_token> BETTER_STACK_INGESTING_HOST=<ingesting_host> dotnet run");
+    return 1;
+}
+
+// Enables Serilog internal logs to help troubleshoot logging, e.g. a batch of logs that Better Stack rejected
+// They are counted, so that the program can tell at the end whether all logs were sent
+var problems = 0;
+Serilog.Debugging.SelfLog.Enable(message =>
+{
+    Interlocked.Increment(ref problems);
+    Console.Error.WriteLine(message);
+});
+
 // Create logger
 Log.Logger = new LoggerConfiguration()
     .WriteTo.BetterStack(
-        sourceToken: "<source_token>",
-        betterStackEndpoint: "https://<ingesting_host>"
+        sourceToken: sourceToken,
+        betterStackEndpoint: $"https://{ingestingHost}"
     )
     .WriteTo.Console()
     .MinimumLevel.Debug()
     .CreateLogger();
-
-// Enables Serilog internal logs to help troubleshoot logging
-Serilog.Debugging.SelfLog.Enable(Console.Error);
 
 // Following code showcases 6 Serilog's default log levels
 // Additionally, it also show how to structure logs to add additional data
@@ -45,6 +60,16 @@ loggerWithContext.Warning("Something is happening!");
 // Send message about serious problems using the Error() method
 loggerWithContext.Error("Error occurred! And it's not good.");
 
+// Pass an exception as the first argument to send it along with its stack trace
+try
+{
+    throw new InvalidOperationException("Item 75423 is out of stock");
+}
+catch (Exception exception)
+{
+    loggerWithContext.Error(exception, "Could not ship item {Item}", 75423);
+}
+
 // Report fatal errors that caused application to crash using the Fatal() method
 loggerWithContext.Fatal("Application crashed! Needs to be fixed ASAP!");
 
@@ -52,4 +77,11 @@ loggerWithContext.Fatal("Application crashed! Needs to be fixed ASAP!");
 // see https://github.com/serilog/serilog/wiki/Lifecycle-of-Loggers
 Log.CloseAndFlush();
 
+if (problems > 0)
+{
+    Console.Error.WriteLine("Serilog reported a problem, see above, so some logs may not have reached Better Stack");
+    return 1;
+}
+
 Console.WriteLine("All done! Now, you can check Better Stack to see your logs");
+return 0;

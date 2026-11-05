@@ -7,11 +7,12 @@ we have prepared a simple program that showcases the usage of BetterStack logger
 
 You can download the example project from GitHub directly or you can clone it to a select directory.
 
+The program reads your source token and ingesting host from the environment variables `BETTER_STACK_SOURCE_TOKEN` and `BETTER_STACK_INGESTING_HOST`. You can find both by going to **[Sources](https://telemetry.betterstack.com/team/0/sources) -> Configure** in Better Stack.
+
 ## Run the example project using Visual Studio
 
-_Replace `<source_token>` and `<ingesting_host>` in the `Program.cs` file with your actual source token and ingesting host which you can find by going to **[Sources](https://telemetry.betterstack.com/team/0/sources) -> Configure** in Better Stack._
-
 Open the `ExampleProject.csproj` file in the Visual Studio.
+Set `BETTER_STACK_SOURCE_TOKEN` and `BETTER_STACK_INGESTING_HOST` in **Debug -> ExampleProject Debug Properties -> Environment variables**.
 Then click on the green play button `ExampleProject` or press **F5** to run the application.
 
 You should see the following output:
@@ -22,12 +23,18 @@ All done! Now, you can check Better Stack to see your logs
 
 ## Run in the command line
 
-_Replace `<source_token>` and `<ingesting_host>` in the `Program.cs` file with your actual source token and ingesting host which you can find by going to **[Sources](https://telemetry.betterstack.com/team/0/sources) -> Configure** in Better Stack._
-
-Open the command line in the project's directory and enter the following command:
+Open the command line in the project's directory and enter the following commands:
 
 ```powershell
+$env:BETTER_STACK_SOURCE_TOKEN = "<source_token>"
+$env:BETTER_STACK_INGESTING_HOST = "<ingesting_host>"
 dotnet run
+```
+
+Or in a Linux or macOS shell:
+
+```sh
+BETTER_STACK_SOURCE_TOKEN=<source_token> BETTER_STACK_INGESTING_HOST=<ingesting_host> dotnet run
 ```
 
 You should see the following output:
@@ -35,6 +42,8 @@ You should see the following output:
 ```powershell
 All done! Now, you can check Better Stack to see your logs
 ```
+
+When Serilog reports a problem instead, for example that Better Stack rejected a batch of logs because the source token is wrong, the program prints it and exits with code 1.
 
 # Setup
 
@@ -85,6 +94,19 @@ Log.Debug("Debugging is hard, but can be easier with Better Stack!");
 
 // Send message about serious problems using the Error() method
 Log.Error("Error occurred! And it's not good.");
+```
+
+To send an exception along with its stack trace, pass it as the first argument:
+
+```csharp
+try
+{
+    throw new InvalidOperationException("Item 75423 is out of stock");
+}
+catch (Exception exception)
+{
+    Log.Error(exception, "Could not ship item {Item}", 75423);
+}
 ```
 
 ## Additional configuration

@@ -1,0 +1,32 @@
+[
+  {
+    "level": "DEBUG",
+    "message": "Debugging is hard, but can be easier with Better Stack!",
+    "contains": {"messageTemplate": "Debugging is hard, but can be easier with Better Stack!"}
+  },
+  {
+    "level": "INFO",
+    "message": "User \"Josh\" - 95845 just ordered item 75423",
+    "contains": {"messageTemplate": "User {User} - {UserId} just ordered item {Item}", "properties": {"User": "Josh", "UserId": 95845, "Item": 75423}}
+  },
+  {
+    "level": "WARNING",
+    "message": "Something is happening!",
+    "contains": {"messageTemplate": "Something is happening!", "properties": {"SourceContext": "Program", "ProcessId": 123, "UserEmail": "user@example.com"}}
+  },
+  {
+    "level": "ERROR",
+    "message": "Error occurred! And it's not good.",
+    "contains": {"messageTemplate": "Error occurred! And it's not good.", "properties": {"SourceContext": "Program", "ProcessId": 123, "UserEmail": "user@example.com"}}
+  },
+  {
+    "level": "ERROR",
+    "message": "Could not ship item 75423",
+    "contains": {"messageTemplate": "Could not ship item {Item}", "exception": "at Program.<Main>$(String[] args)", "properties": {"Item": 75423, "SourceContext": "Program", "ProcessId": 123, "UserEmail": "user@example.com"}}
+  },
+  {
+    "level": "FATAL",
+    "message": "Application crashed! Needs to be fixed ASAP!",
+    "contains": {"messageTemplate": "Application crashed! Needs to be fixed ASAP!", "properties": {"SourceContext": "Program", "ProcessId": 123, "UserEmail": "user@example.com"}}
+  }
+]
